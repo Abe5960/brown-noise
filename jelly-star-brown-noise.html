@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Brown Noise">
+<meta name="theme-color" content="#0c0810">
+<link id="pwa-manifest" rel="manifest">
+<title>Jelly Star — Brown Noise</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #0c0810;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Georgia', 'Palatino Linotype', serif;
+  overflow: hidden;
+  color: #f5e6cc;
+  position: relative;
+}
+
+.bg-stars { position: fixed; inset: 0; pointer-events: none; z-index: 0; }
+
+.jstar { position: absolute; opacity: 0; animation: floatStar linear infinite; }
+.jstar svg { display: block; }
+
+@keyframes floatStar {
+  0%   { opacity: 0; transform: translateY(0) rotate(0deg) scale(0.8); }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-120vh) rotate(360deg) scale(1.2); }
+}
+
+.orb-wrap {
+  position: relative; width: 220px; height: 220px;
+  z-index: 10; margin-bottom: 36px;
+  cursor: pointer; user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.orb-wrap svg { width: 100%; height: 100%; overflow: visible; }
+
+.orb-glow { transition: opacity 0.4s ease; opacity: 0; }
+.orb-glow.active { opacity: 1; }
+
+.orb-body { transition: all 0.3s ease; }
+.orb-body.playing { animation: orbPulse 2.4s ease-in-out infinite; }
+@keyframes orbPulse { 0%,100%{transform:scale(1);} 50%{transform:scale(1.06);} }
+
+.star-inner { animation: starWobble 4s ease-in-out infinite; transform-origin: center; }
+.star-inner.playing { animation: starWobblePlaying 2s ease-in-out infinite; }
+
+@keyframes starWobble {
+  0%,100%{d:path("M110 10 L126 68 L186 68 L138 104 L155 162 L110 127 L65 162 L82 104 L34 68 L94 68 Z");}
+  50%{d:path("M110 12 L124 66 L188 70 L140 106 L152 165 L110 128 L68 165 L120 106 L32 70 L96 66 Z");}
+}
+@keyframes starWobblePlaying {
+  0%,100%{d:path("M110 8 L128 66 L190 66 L140 104 L158 162 L110 124 L62 162 L80 104 L30 66 L92 66 Z");}
+  33%{d:path("M110 14 L122 68 L184 70 L136 106 L150 166 L110 130 L70 166 L124 106 L36 70 L98 68 Z");}
+  66%{d:path("M110 10 L130 64 L192 68 L142 102 L160 160 L110 126 L60 160 L78 102 L28 68 L90 64 Z");}
+}
+
+.controls {
+  z-index: 10; display: flex; flex-direction: column;
+  align-items: center; gap: 24px; width: 280px;
+}
+
+.btn-play {
+  width: 64px; height: 64px; border-radius: 50%;
+  border: 2px solid rgba(245,185,100,0.6);
+  background: rgba(245,185,100,0.1);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s ease; backdrop-filter: blur(8px);
+  -webkit-tap-highlight-color: transparent;
+}
+.btn-play:hover { background:rgba(245,185,100,0.2); border-color:rgba(245,185,100,0.9); transform:scale(1.06); }
+.btn-play:active { transform:scale(0.96); }
+.play-icon { fill: #f5b964; }
+.pause-icon { fill: #f5b964; display: none; }
+.btn-play.playing .play-icon  { display: none; }
+.btn-play.playing .pause-icon { display: block; }
+
+.volume-row { display: flex; align-items: center; gap: 12px; width: 100%; }
+.vol-label {
+  font-size: 12px; color: rgba(245,210,160,0.6);
+  letter-spacing: 0.12em; text-transform: uppercase;
+  white-space: nowrap; font-family: 'Trebuchet MS', sans-serif;
+}
+
+input[type=range] {
+  -webkit-appearance: none; appearance: none;
+  flex: 1; height: 3px; background: rgba(245,185,100,0.25);
+  border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f5b964; cursor: pointer;
+  border: 2px solid rgba(245,185,100,0.4); transition: transform 0.15s;
+}
+input[type=range]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+input[type=range]::-moz-range-thumb {
+  width: 16px; height: 16px; border-radius: 50%;
+  background: #f5b964; cursor: pointer; border: 2px solid rgba(245,185,100,0.4);
+}
+
+.timer-row { display: flex; align-items: center; gap: 12px; width: 100%; justify-content: space-between; }
+.timer-display {
+  font-size: 28px; letter-spacing: 0.06em;
+  color: rgba(245,210,160,0.9); font-variant-numeric: tabular-nums;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 20px rgba(245,185,100,0.3);
+}
+.timer-total { font-size: 13px; color: rgba(245,210,160,0.4); font-family: 'Trebuchet MS', sans-serif; letter-spacing: 0.08em; }
+.progress-bar { width: 100%; height: 2px; background: rgba(245,185,100,0.15); border-radius: 1px; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(90deg,#c97c20,#f5b964); width: 0%; transition: width 1s linear; border-radius: 1px; }
+
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(245,185,100,0.3); transition: all 0.3s ease; }
+.status-dot.active { background: #f5b964; box-shadow: 0 0 8px #f5b96490; animation: dotPulse 2s ease-in-out infinite; }
+@keyframes dotPulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+.title-area { position: absolute; top: max(32px, env(safe-area-inset-top, 32px)); left: 0; right: 0; text-align: center; z-index: 10; }
+.title-main { font-size: 15px; letter-spacing: 0.3em; color: rgba(245,210,160,0.5); text-transform: uppercase; font-family: 'Trebuchet MS', sans-serif; }
+
+.bg-hint {
+  position: absolute; top: max(68px, calc(env(safe-area-inset-top, 32px) + 36px));
+  left: 0; right: 0; display: flex; justify-content: center; z-index: 10;
+  opacity: 0; transition: opacity 0.6s;
+}
+.bg-hint.visible { opacity: 1; }
+.bg-hint span { font-size: 11px; color: rgba(245,185,100,0.4); letter-spacing: 0.1em; font-family: 'Trebuchet MS', sans-serif; }
+
+.install-banner { position: absolute; bottom: max(28px, env(safe-area-inset-bottom, 28px)); left: 0; right: 0; display: flex; justify-content: center; z-index: 10; }
+.install-banner.hidden { display: none; }
+.install-btn {
+  padding: 9px 22px; border: 1px solid rgba(245,185,100,0.35);
+  background: rgba(245,185,100,0.07); color: rgba(245,210,160,0.55);
+  font-size: 12px; letter-spacing: 0.14em; cursor: pointer;
+  border-radius: 24px; font-family: 'Trebuchet MS', sans-serif;
+  transition: all 0.2s; backdrop-filter: blur(6px); text-transform: uppercase;
+}
+.install-btn:hover { background: rgba(245,185,100,0.15); color: rgba(245,210,160,0.85); }
+
+.end-notice {
+  position: fixed; inset: 0; background: rgba(12,8,16,0.9);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 20px; z-index: 100; opacity: 0; pointer-events: none; transition: opacity 0.8s ease;
+}
+.end-notice.visible { opacity: 1; pointer-events: auto; }
+.end-notice p { font-size: 18px; color: rgba(245,210,160,0.8); letter-spacing: 0.15em; font-family: 'Trebuchet MS', sans-serif; }
+.end-notice button {
+  padding: 12px 32px; border: 1.5px solid rgba(245,185,100,0.5);
+  background: transparent; color: #f5b964; font-size: 14px; letter-spacing: 0.15em;
+  cursor: pointer; border-radius: 32px; font-family: 'Trebuchet MS', sans-serif; transition: all 0.2s;
+}
+.end-notice button:hover { background: rgba(245,185,100,0.12); }
+</style>
+</head>
+<body>
+
+<div class="title-area"><div class="title-main">Jelly Star ✦ Brown Noise</div></div>
+<div class="bg-hint" id="bgHint"><span>✦ バックグラウンド再生中</span></div>
+<div class="bg-stars" id="bgStars"></div>
+
+<!-- iOS: silent audio element keeps audio session alive in background -->
+<audio id="silentAudio" loop preload="auto"
+  src="data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAA=="
+  style="display:none"></audio>
+
+<div class="orb-wrap" id="orbWrap" onclick="togglePlay()">
+  <svg viewBox="0 30 220 160" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#f5b964" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#c97c20" stop-opacity="0"/>
+      </radialGradient>
+      <radialGradient id="bodyGrad" cx="40%" cy="35%" r="60%">
+        <stop offset="0%" stop-color="#ffd699" stop-opacity="0.95"/>
+        <stop offset="50%" stop-color="#f5a623" stop-opacity="0.85"/>
+        <stop offset="100%" stop-color="#a05010" stop-opacity="0.8"/>
+      </radialGradient>
+      <radialGradient id="innerGloss" cx="35%" cy="25%" r="40%">
+        <stop offset="0%" stop-color="rgba(255,240,200,0.6)"/>
+        <stop offset="100%" stop-color="rgba(255,240,200,0)"/>
+      </radialGradient>
+      <filter id="softBlur"><feGaussianBlur stdDeviation="3"/></filter>
+    </defs>
+    <ellipse class="orb-glow" id="orbGlow" cx="110" cy="110" rx="80" ry="80" fill="url(#glowGrad)" filter="url(#softBlur)"/>
+    <g class="orb-body" id="orbBody" style="transform-origin:110px 110px">
+      <path class="star-inner" id="starShadow"
+        d="M110 10 L126 68 L186 68 L138 104 L155 162 L110 127 L65 162 L82 104 L34 68 L94 68 Z"
+        fill="rgba(80,30,0,0.4)" transform="translate(4,6)" filter="url(#softBlur)"/>
+      <path class="star-inner" id="starMain"
+        d="M110 10 L126 68 L186 68 L138 104 L155 162 L110 127 L65 162 L82 104 L34 68 L94 68 Z"
+        fill="url(#bodyGrad)" stroke="rgba(255,210,120,0.3)" stroke-width="1.5"/>
+      <path d="M110 10 L126 68 L186 68 L138 104 L155 162 L110 127 L65 162 L82 104 L34 68 L94 68 Z"
+        fill="url(#innerGloss)"/>
+      <path d="M110 52 L116 74 L139 74 L121 87 L127 109 L110 97 L93 109 L99 87 L81 74 L104 74 Z"
+        fill="rgba(255,245,210,0.18)"/>
+    </g>
+  </svg>
+</div>
+
+<div class="controls">
+  <button class="btn-play" id="btnPlay" onclick="togglePlay()">
+    <svg width="22" height="22" viewBox="0 0 24 24">
+      <polygon class="play-icon" points="5,3 19,12 5,21"/>
+      <g class="pause-icon">
+        <rect x="5" y="3" width="4" height="18" rx="1"/>
+        <rect x="15" y="3" width="4" height="18" rx="1"/>
+      </g>
+    </svg>
+  </button>
+  <div class="timer-row">
+    <div><div class="timer-display" id="timerDisplay">3:00:00</div></div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+      <div class="status-dot" id="statusDot"></div>
+      <div class="timer-total">/ 3:00:00</div>
+    </div>
+  </div>
+  <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+  <div class="volume-row">
+    <span class="vol-label">Vol</span>
+    <input type="range" id="volSlider" min="0" max="100" value="60" oninput="setVolume(this.value)">
+    <span class="vol-label" id="volVal">60</span>
+  </div>
+</div>
+
+<div class="install-banner hidden" id="installBanner">
+  <button class="install-btn" id="installBtn">✦ ホーム画面に追加</button>
+</div>
+
+<div class="end-notice" id="endNotice">
+  <p>✦ 3時間 完了 ✦</p>
+  <button onclick="resetTimer()">もう一度再生</button>
+</div>
+
+<script>
+// ── PWA Manifest (inline blob) ─────────────────────────────────────
+(function() {
+  const m = {
+    name:"Jelly Star Brown Noise", short_name:"Brown Noise",
+    description:"3時間ブラウンノイズ", start_url:"./",
+    display:"standalone", background_color:"#0c0810", theme_color:"#0c0810",
+    orientation:"portrait",
+    icons:[{
+      src:"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230c0810'/%3E%3Cpath d='M256 40L294 170L434 170L322 250L362 382L256 302L150 382L190 250L78 170L218 170Z' fill='%23f5a623'/%3E%3C/svg%3E",
+      sizes:"512x512", type:"image/svg+xml", purpose:"any maskable"
+    }]
+  };
+  try {
+    const b = new Blob([JSON.stringify(m)],{type:'application/manifest+json'});
+    document.getElementById('pwa-manifest').href = URL.createObjectURL(b);
+  } catch(e){}
+})();
+
+// ── PWA Install prompt ─────────────────────────────────────────────
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installBanner').classList.remove('hidden');
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+  document.getElementById('installBanner').classList.add('hidden');
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installBanner').classList.add('hidden');
+});
+
+// ── Audio engine ───────────────────────────────────────────────────
+let audioCtx   = null;
+let gainNode   = null;
+let noiseSource = null;
+let noiseBuffer = null;
+let playing    = false;
+
+const TOTAL_SECONDS = 3 * 60 * 60;
+let elapsed = 0;
+let timerInterval = null;
+
+// Pre-generate 60s of brown noise → looped via BufferSourceNode
+function generateBrownNoise(ctx) {
+  const sampleRate = ctx.sampleRate;
+  const len  = sampleRate * 60;
+  const buf  = ctx.createBuffer(1, len, sampleRate);
+  const data = buf.getChannelData(0);
+  let last = 0;
+  for (let i = 0; i < len; i++) {
+    const w = Math.random() * 2 - 1;
+    last = (last + 0.02 * w) / 1.02;
+    data[i] = last * 3.5;
+  }
+  // Normalize
+  let peak = 0;
+  for (let i = 0; i < len; i++) { const a = Math.abs(data[i]); if (a > peak) peak = a; }
+  if (peak > 0) for (let i = 0; i < len; i++) data[i] = data[i] / peak * 0.85;
+  // Crossfade edges for gapless loop
+  const fade = 4000;
+  for (let i = 0; i < fade; i++) {
+    const t = i / fade;
+    data[i] = data[i] * t + data[len - fade + i] * (1 - t);
+  }
+  return buf;
+}
+
+function initAudio() {
+  if (audioCtx) return;
+  audioCtx    = new (window.AudioContext || window.webkitAudioContext)();
+  gainNode    = audioCtx.createGain();
+  gainNode.gain.value = 0.6;
+  gainNode.connect(audioCtx.destination);
+  noiseBuffer = generateBrownNoise(audioCtx);
+}
+
+function startNoise() {
+  stopNoise();
+  noiseSource = audioCtx.createBufferSource();
+  noiseSource.buffer = noiseBuffer;
+  noiseSource.loop   = true;
+  noiseSource.connect(gainNode);
+  noiseSource.start();
+}
+
+function stopNoise() {
+  if (noiseSource) {
+    try { noiseSource.stop(); noiseSource.disconnect(); } catch(e) {}
+    noiseSource = null;
+  }
+}
+
+async function resumeCtx() {
+  if (audioCtx && audioCtx.state === 'suspended') await audioCtx.resume();
+}
+
+// ── iOS: silent <audio> keeps audio session active in background ───
+const silentAudio = document.getElementById('silentAudio');
+function startSilent() { silentAudio.play().catch(()=>{}); }
+function stopSilent()  { silentAudio.pause(); silentAudio.currentTime = 0; }
+
+// ── MediaSession (lockscreen controls) ────────────────────────────
+function setupMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.metadata = new MediaMetadata({
+    title: 'Brown Noise', artist: 'Jelly Star', album: '3時間'
+  });
+  navigator.mediaSession.setActionHandler('play',  () => { if (!playing) togglePlay(); });
+  navigator.mediaSession.setActionHandler('pause', () => { if (playing)  togglePlay(); });
+  navigator.mediaSession.setActionHandler('stop',  () => { if (playing)  togglePlay(); });
+}
+
+function updateMediaSession() {
+  if (!('mediaSession' in navigator)) return;
+  navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+  try {
+    navigator.mediaSession.setPositionState({
+      duration: TOTAL_SECONDS, position: elapsed, playbackRate: 1
+    });
+  } catch(e) {}
+}
+
+// ── Auto-resume on visibility restore ─────────────────────────────
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') {
+    document.getElementById('bgHint').classList.add('visible');
+  } else {
+    document.getElementById('bgHint').classList.remove('visible');
+    if (playing) resumeCtx();
+  }
+});
+window.addEventListener('pageshow', () => { if (playing) resumeCtx(); });
+window.addEventListener('focus',    () => { if (playing) resumeCtx(); });
+
+// ── Controls ──────────────────────────────────────────────────────
+function togglePlay() {
+  if (elapsed >= TOTAL_SECONDS) { resetTimer(); return; }
+  initAudio();
+  resumeCtx();
+  playing = !playing;
+
+  if (playing) {
+    startNoise();
+    startSilent();
+    startTimer();
+    setupMediaSession();
+    document.getElementById('btnPlay').classList.add('playing');
+    document.getElementById('orbGlow').classList.add('active');
+    document.getElementById('orbBody').classList.add('playing');
+    document.getElementById('starMain').classList.add('playing');
+    document.getElementById('statusDot').classList.add('active');
+  } else {
+    stopNoise();
+    stopSilent();
+    clearInterval(timerInterval);
+    document.getElementById('btnPlay').classList.remove('playing');
+    document.getElementById('orbGlow').classList.remove('active');
+    document.getElementById('orbBody').classList.remove('playing');
+    document.getElementById('starMain').classList.remove('playing');
+    document.getElementById('statusDot').classList.remove('active');
+  }
+  updateMediaSession();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    elapsed++;
+    updateTimerDisplay();
+    updateMediaSession();
+    if (elapsed >= TOTAL_SECONDS) finishTimer();
+  }, 1000);
+}
+
+function updateTimerDisplay() {
+  const rem = TOTAL_SECONDS - elapsed;
+  const h = Math.floor(rem / 3600);
+  const m = Math.floor((rem % 3600) / 60);
+  const s = rem % 60;
+  document.getElementById('timerDisplay').textContent =
+    `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  document.getElementById('progressFill').style.width =
+    (elapsed / TOTAL_SECONDS * 100) + '%';
+}
+
+function finishTimer() {
+  clearInterval(timerInterval);
+  stopNoise(); stopSilent();
+  playing = false;
+  document.getElementById('btnPlay').classList.remove('playing');
+  document.getElementById('orbGlow').classList.remove('active');
+  document.getElementById('orbBody').classList.remove('playing');
+  document.getElementById('starMain').classList.remove('playing');
+  document.getElementById('statusDot').classList.remove('active');
+  document.getElementById('endNotice').classList.add('visible');
+  if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'none';
+}
+
+function resetTimer() {
+  elapsed = 0;
+  updateTimerDisplay();
+  document.getElementById('endNotice').classList.remove('visible');
+}
+
+function setVolume(val) {
+  document.getElementById('volVal').textContent = val;
+  if (gainNode) gainNode.gain.value = val / 100;
+}
+
+// ── Floating stars ─────────────────────────────────────────────────
+const starColors = ['rgba(245,185,100,','rgba(255,160,80,','rgba(200,130,60,','rgba(255,220,140,','rgba(180,100,40,','rgba(240,200,100,'];
+const starPaths  = [
+  "M50 5 L61 35 L95 35 L68 57 L79 91 L50 70 L21 91 L32 57 L5 35 L39 35 Z",
+  "M50 2 L58 42 L98 50 L58 58 L50 98 L42 58 L2 50 L42 42 Z",
+  "M50 5 L60 30 L88 15 L73 42 L98 50 L73 58 L88 85 L60 70 L50 95 L40 70 L12 85 L27 58 L2 50 L27 42 L12 15 L40 30 Z",
+];
+
+function createBgStar() {
+  const wrap = document.getElementById('bgStars');
+  const el   = document.createElement('div');
+  el.classList.add('jstar');
+  const size = 20 + Math.random() * 60;
+  const x    = Math.random() * 100;
+  const dur  = 12 + Math.random() * 20;
+  const del  = Math.random() * -25;
+  const col  = starColors[Math.floor(Math.random() * starColors.length)];
+  const op   = 0.06 + Math.random() * 0.18;
+  const pd   = starPaths[Math.floor(Math.random() * starPaths.length)];
+  el.style.cssText = `left:${x}%;bottom:-${size}px;width:${size}px;height:${size}px;animation-duration:${dur}s;animation-delay:${del}s;`;
+  const svg  = document.createElementNS('http://www.w3.org/2000/svg','svg');
+  svg.setAttribute('viewBox','0 0 100 100');
+  svg.style.cssText = `width:${size}px;height:${size}px;overflow:visible;`;
+  const path = document.createElementNS('http://www.w3.org/2000/svg','path');
+  path.setAttribute('d', pd);
+  path.setAttribute('fill',   `${col}${op})`);
+  path.setAttribute('stroke', `${col}${Math.min(op+0.1,0.4)})`);
+  path.setAttribute('stroke-width','1');
+  svg.appendChild(path); el.appendChild(svg); wrap.appendChild(el);
+  setTimeout(() => { el.remove(); createBgStar(); }, (dur + Math.abs(del)) * 1000);
+}
+
+for (let i = 0; i < 16; i++) createBgStar();
+</script>
+</body>
+</html>
